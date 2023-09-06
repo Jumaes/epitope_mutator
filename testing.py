@@ -1,0 +1,206 @@
+from typing import Dict
+from pathlib import Path
+from epitope_mutations import Epitope
+from input_output import epis_from_dicts, epilist_from_csv, mutationlist_from_csv, read_sequence_from_fasta
+from Bio.Align import PairwiseAligner
+import pandas as pd
+
+test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
+test_epitope_2 = {'epitope_id': 2,'protein':'S', 'start':19, 'end':26, 'length':8, 'sequence':'HRWLIGHK', 'HLA_restrictions': 'HLA class II'}
+test_epitope_3 = {'epitope_id': 3,'protein':'S', 'start':19, 'end':32, 'length':14, 'sequence':'HRWLIGHKCCCCCC', 'HLA_restrictions': 'HLA class II'}
+
+mutations = [ 
+    {'protein':'S', 'position': 8, 'new': 'T'},
+      {'protein':'S', 'position': 13, 'new': 'L'},
+        {'protein':'S', 'position': 16, 'new': 'C'},
+        {'protein':'S', 'position': 18, 'new': '-'},
+        {'protein':'S', 'position': 19, 'new': '-'},
+]
+
+mutation_set_2 = [ 
+    {'protein':'S', 'position': 8, 'new': 'T'},
+      {'protein':'S', 'position': 13, 'new': 'L'},
+        {'protein':'S', 'position': 16, 'new': 'C'},
+        {'protein':'S', 'position': 18, 'new': 'TTG'},
+        {'protein':'S', 'position': 10, 'new': '-'},
+        {'protein':'S', 'position':32, 'new': '-'},
+]
+
+#                    0        1         2         3         4 
+#                    1234567890123456789012345678901234567890
+original_sequence = 'GGGGGGGGGALCTTSFWFHRWLIGHKCCCCCCRRRRRRRR'
+
+#                    0        1         2         3         4 
+#                    1234567890123456789012345678901234567890
+mutated_seq_set2  = 'GGGGGGGTG-LCLTSCWTTGHRWLIGHKCCCCC-RRRRRRRR'
+test_epi1_mod =   '-LCLTSCWTTGH'
+test_epi1_final = 'GLCLTSCWTT'
+
+test_epi2_mod = 'HRWLIGHK'
+test_epi2_final = 'HRWLIGHK'
+
+test_epi3_mod =   'HRWLIGHKCCCCC-'
+test_epi3_final = 'HRWLIGHKCCCCCR'
+
+test_deletion_before_aligned = '-LCL-S-WTTGH'
+
+def epitope_mutations_tests():
+  realstart = Epitope.gaps_before(0,test_deletion_before_aligned)
+  assert test_deletion_before_aligned[realstart] == 'L'
+  realstart = Epitope.gaps_before(1,test_deletion_before_aligned)
+  assert test_deletion_before_aligned[realstart] == 'C'
+  realstart = Epitope.gaps_before(3,test_deletion_before_aligned)
+  assert test_deletion_before_aligned[realstart] == 'S'
+  realstart = Epitope.gaps_before(4,test_deletion_before_aligned)
+  assert test_deletion_before_aligned[realstart] == 'W'
+
+
+  epi1 = Epitope(test_epitope_1)
+  epi2 = Epitope(test_epitope_2)
+  epi3 = Epitope(test_epitope_3)
+
+  #print (epi1)
+  #epi1.apply_mutations(mutations)
+  #print(epi1)
+
+
+  #print (epi2)
+  #epi2.apply_mutations(mutations)
+  #print(epi2) 
+
+  epi1.apply_mutations(mutation_set_2)
+  epi1.modify_indel_epitopes(mutated_seq_set2)
+  print (epi1)
+  assert epi1.mod_sequence == test_epi1_mod, "Easy modification failed."
+  assert epi1.final_mutated_seq == test_epi1_final, "Generation of final mutated sequence failed."
+
+
+  epi2.apply_mutations(mutation_set_2)
+  epi2.modify_indel_epitopes(mutated_seq_set2)
+  print (epi2)
+  assert epi2.mod_sequence == test_epi2_mod, "Easy modification failed."
+  assert epi2.final_mutated_seq == test_epi2_final, "Generation of final mutated sequence failed."
+  
+  epi3.apply_mutations(mutation_set_2)
+  epi3.modify_indel_epitopes(mutated_seq_set2)
+  print (epi3)
+  assert epi3.mod_sequence == test_epi3_mod, "Easy modification failed."
+  assert epi3.final_mutated_seq == test_epi3_final, "Generation of final mutated sequence failed."
+
+
+  print(epi1.to_dict())
+  print(epi2.to_dict())
+  print(epi3.to_dict())
+  return list(epi1.to_dict(), epi2.to_dict(), epi3.to_dict)
+
+def input_output_tests() -> Dict[str,pd.DataFrame]:
+  print("Testing generation of epis from dictionaries.")
+  epilist = [test_epitope_1,test_epitope_2, test_epitope_3]
+  epis = epis_from_dicts(epilist)
+  for epi in epis:
+    print(epi)
+
+  print("Testing generation of epis from input csv file.")
+  f = Path('testing_data/CD8_epitopes_restrictions.csv')
+  raw_CD8_epis = epilist_from_csv(f)
+  # Now using as raw_epis here and then later filter out those, where the sequence is actually not contained in the ancestral wuhan sequence.
+  print("Testing generation of mutations from input csv file.")
+  fmut = Path('testing_data/mutations_ba286.csv')
+  mutations = mutationlist_from_csv(fmut)
+  print("Testing generation of first input sequence from fasta file and then generation of mutated sequence with mutations.")
+  seqfilepath = Path('testing_data/spike_wt_ba286.txt')
+  spike_wuhan =  read_sequence_from_fasta(seqfilepath, 'Spike-Wuhan')
+  # Now filtering out those epis, where the sequence is not contained in the spike wuhan sequence.
+  CD8_epis = [epi for epi in raw_CD8_epis if epi.sequence in spike_wuhan['Spike-Wuhan']]
+  spike_pseudo_epi = Epitope({
+    'epitope_id':'Spike',
+    'protein': 'S',
+    'sequence': spike_wuhan['Spike-Wuhan'],
+    'start' : 1,
+    'end' : len(spike_wuhan['Spike-Wuhan'])+1,
+    'HLA_restrictions':'',
+    })
+  spike_pseudo_epi.apply_mutations(mutations)
+  ba_286_seq = spike_pseudo_epi.mod_sequence.replace('-','')
+  '''
+  print("Testing if generated mutated sequence from WT matches Albas sequence.")
+  albas_ba286_seq = read_sequence_from_fasta(seqfilepath,'spike_BA2.86')['spike_BA2.86']
+  print('#'*30 + ' MY BA 286')
+  print(ba_286_seq)
+  print('#'*30 + ' ALBAS BA 286')
+  print(albas_ba286_seq)
+  print('#'*30 + ' ALIGNMENT STARTING HERE')
+  aligner = PairwiseAligner()
+  alignment = aligner.align(ba_286_seq,albas_ba286_seq)[0]
+  #print(alignment)
+  # return alignment
+  # assert ba_286_seq == albas_ba286_seq, 'Generated BA2.86 sequence not the same as the one from Alba'''
+  print("Now testing application of mutations from csv file to epis from csv file including alignment and autocomplete in second step.")
+  for epi in CD8_epis: 
+    epi.apply_mutations(mutations)
+    epi.modify_indel_epitopes(mutated_sequence=ba_286_seq)
+    # print(epi.to_dict())
+  print("Now splitting into those with mutations and those without.")
+  no_mutations = [epi.to_dict() for epi in CD8_epis if epi.mutation_counter == 0]
+  with_mutations = [epi.to_dict() for epi in CD8_epis if epi.mutation_counter != 0]
+  with_deletions = [epi.to_dict() for epi in CD8_epis if epi.has_del]
+  with_insertions = [epi.to_dict() for epi in CD8_epis if epi.has_ins]
+  all_epis = [epi.to_dict() for epi in CD8_epis ]
+  print(f"Of {str(len(CD8_epis))} epis, {str(len(no_mutations))} have not mutations.")
+  print(f"{str(len(with_mutations))} have any kind of mutation.")
+  print(f"{str(len(with_deletions))} have at least one deletion.")
+  print(f"{str(len(with_insertions))} have at least one insetion mutation.")
+  print("Returning a dict of dataframes with first those without mutations, then any mutation, then deletions, then insertions.")
+  no_mutations_df = pd.DataFrame.from_records(no_mutations)
+  with_mutations_df = pd.DataFrame.from_records(with_mutations)
+  with_deletions_df = pd.DataFrame.from_records(with_deletions)
+  with_insertions_df = pd.DataFrame.from_records(with_insertions)
+  all_epis_df = pd.DataFrame.from_records(all_epis)
+  df_dict = {'no_mutations':no_mutations_df, 'with_mutations':with_mutations_df,'with_deletions': with_deletions_df, 'with_insertions':with_insertions_df, 'all_epis':all_epis_df}  
+  folder =  Path('testing_data/testing_output_data')
+  column_order = [
+      'epitope_id',
+      'protein',
+      'start',
+      'end',
+      'length', 
+      'original_sequence',
+      'modified not final sequence',
+      'mutated_sequence',
+      'contains deletion', 
+      'contains insertion',
+      'mutations in this epitope',
+      'HLA restrictions'
+      ]
+  for name,dataframe in df_dict.items():
+    # Some columns might not exist like 'protein'. So I can't just apply the list as new order, but have to keep just those, which are actually in the dataset.
+    new_columns = []
+    for column in column_order:
+      if column in dataframe.columns:
+        new_columns.append(column)
+    dataframe = dataframe[new_columns]
+    dataframe.to_csv(folder.joinpath(f'{name}.csv'),sep=';',index=False)
+  stat_dict = {
+      'Type':['All epitopes','With any mutations','With deletions','With insertions'],
+      'Number': [all_epis_df.shape[0],with_mutations_df.shape[0],with_deletions_df.shape[0],with_insertions_df.shape[0]],
+      'Of total': [all_epis_df.shape[0]/all_epis_df.shape[0], with_mutations_df.shape[0]/all_epis_df.shape[0],with_deletions_df.shape[0]/all_epis_df.shape[0],with_insertions_df.shape[0]/all_epis_df.shape[0]]
+
+    }
+  stats = pd.DataFrame(stat_dict)
+  stats.to_csv(folder.joinpath('stats.csv'),sep=';',index=False)
+  hist_data = all_epis_df.groupby(by='mutations in this epitope').count().loc[:,'start']
+  hist_data.to_csv(folder.joinpath('histogramm_data.csv'),sep=';')
+  df_dict['stats'] = stats
+  df_dict['hist_data'] = hist_data
+  return df_dict
+
+if __name__ == "__main__":
+  dfs = input_output_tests()
+
+
+  # TODO:
+  # DONE Filter on epitope existing in ancestral sequence
+  # DONE Export stats with number of epitopes with mutation, deletions, insertions, % mutations and hist of number of mutations
+  # Make sure restriction info is in there; I'll get one file with unique epitop ID HAL combo; export like that and without HLA with unique epitope ID lines and number of different HLA restrctions
+  # DONE Export one csv with all
+  # DONE Bring start and end into final table
