@@ -7,8 +7,6 @@ from Bio.Align import PairwiseAligner
 import pandas as pd
 
 test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
-test_epitope_2 = {'epitope_id': 2,'protein':'S', 'start':19, 'end':26, 'length':8, 'sequence':'HRWLIGHK', 'HLA_restrictions': 'HLA class II'}
-test_epitope_3 = {'epitope_id': 3,'protein':'S', 'start':19, 'end':32, 'length':14, 'sequence':'HRWLIGHKCCCCCC', 'HLA_restrictions': 'HLA class II'}
 
 mutation_start = [{'protein':'S', 'position': 10, 'new': 'T'}]
 mutation_middle = [{'protein':'S', 'position': 15, 'new': 'T'}]
@@ -23,27 +21,20 @@ mutation_insert = [{'protein':'S', 'position': 14, 'new': 'CRC'}]
 mutation_insert_middle = [{'protein':'S', 'position': 14, 'new': 'CRC'},
                           {'protein':'S', 'position': 15, 'new': 'W'}]
 
+mutation_del_pos1 = [{'protein':'S', 'position': 10, 'new': '-'}]
+mutation_del_pos2 = [{'protein':'S', 'position': 11, 'new': '-'}]
 
-mutations = [ 
-    {'protein':'S', 'position': 8, 'new': 'T'},
-    {'protein':'S', 'position': 13, 'new': 'L'},
-    {'protein':'S', 'position': 16, 'new': 'C'},
-    {'protein':'S', 'position': 18, 'new': '-'},
-        {'protein':'S', 'position': 19, 'new': '-'},
-]
+mutation_del_pos19 = [{'protein':'S', 'position': 19, 'new': '-'}]
+mutation_del_pos18 = [{'protein':'S', 'position': 18, 'new': '-'}]
 
-mutation_set_2 = [ 
-    {'protein':'S', 'position': 8, 'new': 'T'},
-    {'protein':'S', 'position': 13, 'new': 'L'},
-    {'protein':'S', 'position': 16, 'new': 'C'},
-    {'protein':'S', 'position': 18, 'new': 'TTG'},
-    {'protein':'S', 'position': 10, 'new': '-'},
-    {'protein':'S', 'position':32, 'new': '-'},
-]
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
-original_sequence = 'GGGGGGGGGALCTTSFWFHRWLIGHKCCCCCCRRRRRRRR'
+original_sequence = 'GGGGGGGGGALCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_del_start =     'GGGGGGGGGLCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_dels_start =    'GGGGGGGGGCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_del_end =       'GGGGGGGGGALCTTSFWFEEEEEEEEEEEEEEEEEEEEE'
+seq_dels_end =      'GGGGGGGGGALCTTSFWEEEEEEEEEEEEEEEEEEEEE'
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
@@ -133,11 +124,47 @@ class TestEpitope:
     assert epi.has_ins == True
     assert epi.has_del == False
 
+  def test_final_seq_no_indel(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_middle)
+    epi.modify_indel_epitopes('AAAAAAAAA')
+    assert epi.final_mutated_seq == 'ALCTTTFWFH'
+
+  def test_final_seq_gaps_start(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_del_pos1)
+    epi.modify_indel_epitopes(seq_del_start)
+    assert epi.final_mutated_seq == 'GLCTTSFWFH'
+    epi = Epitope(test_epitope_1)
+    deletions = mutation_del_pos1 + mutation_del_pos2
+    epi.apply_mutations(deletions)
+    epi.modify_indel_epitopes(seq_dels_start)
+    assert epi.final_mutated_seq == 'GGCTTSFWFH'
+
+  def test_final_seq_gaps_end(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_del_pos19)
+    epi.modify_indel_epitopes(seq_del_end)
+    assert epi.final_mutated_seq == 'ALCTTSFWFE'
+    epi = Epitope(test_epitope_1)
+    deletions = mutation_del_pos19 + mutation_del_pos18
+    epi.apply_mutations(deletions)
+    epi.modify_indel_epitopes(seq_dels_end)
+    assert epi.final_mutated_seq == 'ALCTTSFWEE'
+
+# Now the actually difficult ones:
+# What about multuple gaps in the middle, padding front or back?
+# What about insertions?
+# What about combination of insertions and deletions?
+
 """
   def to_dict_test():
+  # test existence of keywords?
   def to_dict_no_mod_seq_test():
   def to_dict_no_final_seq_test():
   def gaps_before_align_test():
+  # This should probably move way up, bc the final seq stuff relies on it.
+  # Also, there are already tests in the old version down.
   
   def translate_ORF_to_protein_start_test():
   def translate_ORF_to_protein_middle_test():
