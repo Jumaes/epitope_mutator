@@ -1,3 +1,4 @@
+#! /home/julian/anaconda3/bin/python
 from typing import Dict
 from pathlib import Path
 from epitope_mutations import Epitope
@@ -9,21 +10,35 @@ test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':
 test_epitope_2 = {'epitope_id': 2,'protein':'S', 'start':19, 'end':26, 'length':8, 'sequence':'HRWLIGHK', 'HLA_restrictions': 'HLA class II'}
 test_epitope_3 = {'epitope_id': 3,'protein':'S', 'start':19, 'end':32, 'length':14, 'sequence':'HRWLIGHKCCCCCC', 'HLA_restrictions': 'HLA class II'}
 
+mutation_start = [{'protein':'S', 'position': 10, 'new': 'T'}]
+mutation_middle = [{'protein':'S', 'position': 15, 'new': 'T'}]
+mutation_end = [{'protein':'S', 'position': 19, 'new': 'T'}]
+mutation_end_wrong_protein = [{'protein':'A', 'position': 19, 'new': 'T'}
+]
+mutation_del = [{'protein':'S', 'position': 12, 'new': '-'}]
+mutation_del_middle = [{'protein':'S', 'position': 12, 'new': '-'},
+                       {'protein':'S', 'position': 15, 'new': 'T'}]
+
+mutation_insert = [{'protein':'S', 'position': 14, 'new': 'CRC'}]
+mutation_insert_middle = [{'protein':'S', 'position': 14, 'new': 'CRC'},
+                          {'protein':'S', 'position': 15, 'new': 'W'}]
+
+
 mutations = [ 
     {'protein':'S', 'position': 8, 'new': 'T'},
-      {'protein':'S', 'position': 13, 'new': 'L'},
-        {'protein':'S', 'position': 16, 'new': 'C'},
-        {'protein':'S', 'position': 18, 'new': '-'},
+    {'protein':'S', 'position': 13, 'new': 'L'},
+    {'protein':'S', 'position': 16, 'new': 'C'},
+    {'protein':'S', 'position': 18, 'new': '-'},
         {'protein':'S', 'position': 19, 'new': '-'},
 ]
 
 mutation_set_2 = [ 
     {'protein':'S', 'position': 8, 'new': 'T'},
-      {'protein':'S', 'position': 13, 'new': 'L'},
-        {'protein':'S', 'position': 16, 'new': 'C'},
-        {'protein':'S', 'position': 18, 'new': 'TTG'},
-        {'protein':'S', 'position': 10, 'new': '-'},
-        {'protein':'S', 'position':32, 'new': '-'},
+    {'protein':'S', 'position': 13, 'new': 'L'},
+    {'protein':'S', 'position': 16, 'new': 'C'},
+    {'protein':'S', 'position': 18, 'new': 'TTG'},
+    {'protein':'S', 'position': 10, 'new': '-'},
+    {'protein':'S', 'position':32, 'new': '-'},
 ]
 
 #                    0        1         2         3         4 
@@ -44,7 +59,96 @@ test_epi3_final = 'HRWLIGHKCCCCCR'
 
 test_deletion_before_aligned = '-LCL-S-WTTGH'
 
-def epitope_mutations_tests():
+class TestEpitope:
+  # def initialize_test():
+  #   return
+  # def initialize_wrong_dataypes_test():
+  #   return
+  # def print_test():
+  #   return
+  def test_mutations_start(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_start)
+    assert epi.mod_sequence == 'TLCTTSFWFH'
+    assert epi.mutation_counter == 1
+
+  def test_mutations_middle(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_middle)
+    assert epi.mod_sequence == 'ALCTTTFWFH'
+    assert epi.mutation_counter == 1
+ 
+  def test_mutations_end(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_end)
+    assert epi.mod_sequence == 'ALCTTSFWFT'
+    assert epi.mutation_counter == 1
+
+  def test_mutations_wrong_protein(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_end_wrong_protein)
+    assert epi.mod_sequence == 'ALCTTSFWFH'
+    assert epi.mutation_counter == 0
+    assert epi.has_del == False
+    assert epi.has_ins == False
+
+  def test_mutations_wrong_protein_ignore(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_end_wrong_protein,check_protein=False)
+    assert epi.mod_sequence == 'ALCTTSFWFT'
+    assert epi.mutation_counter == 1
+    assert epi.has_del == False
+    assert epi.has_ins == False
+
+  def test_mutations_del(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_del)
+    assert epi.mod_sequence == 'AL-TTSFWFH'
+    assert epi.mutation_counter == 1
+    assert epi.has_ins == False
+    assert epi.has_del == True
+  
+  def test_mutations_del_and_mut(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_del_middle)
+    assert epi.mod_sequence == 'AL-TTTFWFH'
+    assert epi.mutation_counter == 2
+    assert epi.has_ins == False
+    assert epi.has_del == True
+
+  def test_mutations_insert(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert)
+    assert epi.mod_sequence == 'ALCTCRCTSFWFH'
+    assert epi.mutation_counter == 1
+    assert epi.has_ins == True
+    assert epi.has_del == False
+
+
+  def test_mutations_insert_and_mut(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert_middle)
+    assert epi.mod_sequence == 'ALCTCRCTWFWFH'
+    assert epi.mutation_counter == 2
+    assert epi.has_ins == True
+    assert epi.has_del == False
+
+"""
+  def to_dict_test():
+  def to_dict_no_mod_seq_test():
+  def to_dict_no_final_seq_test():
+  def gaps_before_align_test():
+  
+  def translate_ORF_to_protein_start_test():
+  def translate_ORF_to_protein_middle_test():
+  def translate_ORF_to_protein_last_test():
+
+
+  
+
+
+
+def epitope_mutations_test():
   realstart = Epitope.gaps_before(0,test_deletion_before_aligned)
   assert test_deletion_before_aligned[realstart] == 'L'
   realstart = Epitope.gaps_before(1,test_deletion_before_aligned)
@@ -203,4 +307,4 @@ if __name__ == "__main__":
   # DONE Export stats with number of epitopes with mutation, deletions, insertions, % mutations and hist of number of mutations
   # Make sure restriction info is in there; I'll get one file with unique epitop ID HAL combo; export like that and without HLA with unique epitope ID lines and number of different HLA restrctions
   # DONE Export one csv with all
-  # DONE Bring start and end into final table
+  # DONE Bring start and end into final table"""
