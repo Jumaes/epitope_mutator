@@ -41,6 +41,11 @@ mutation_insert_dels_after = [{'protein':'S', 'position': 14, 'new': 'CRC'},
                           {'protein':'S', 'position': 16, 'new': '-'},
                           ]
 
+mutation_insert_dels_before = [{'protein':'S', 'position': 14, 'new': 'CRC'},
+                          {'protein':'S', 'position': 11, 'new': '-'},
+                          {'protein':'S', 'position': 12, 'new': '-'},
+                          ]
+
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
@@ -57,6 +62,7 @@ seq_ins_middle =    'GGGGGGGGGALCTCRCTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_ins_start =     'GGGGGGGGGCRCALCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_ins_end =       'GGGGGGGGGALCTTSCRCFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_ins_del_after = 'GGGGGGGGGALCTCRCTWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_ins_del_before ='GGGGGGGGGATCRCTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
@@ -73,12 +79,6 @@ test_epi3_final = 'HRWLIGHKCCCCCR'
 test_deletion_before_aligned = '-LCL-S-WTTGH'
 
 class TestEpitope:
-  # def initialize_test():
-  #   return
-  # def initialize_wrong_dataypes_test():
-  #   return
-  # def print_test():
-  #   return
   def test_mutations_start(self):
     epi = Epitope(test_epitope_1)
     epi.apply_mutations(mutation_start)
@@ -209,6 +209,12 @@ class TestEpitope:
     epi.apply_mutations(mutation_insert_dels_after)
     epi.modify_indel_epitopes(seq_ins_del_after)
     assert epi.final_mutated_seq == 'ALCTCRCTWF'
+
+  def test_final_seq_insert_dels_before(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert_dels_before)
+    epi.modify_indel_epitopes(seq_ins_del_before)
+    assert epi.final_mutated_seq == 'TCRCTSFWFH'
 
 
 # Now the actually difficult ones:
