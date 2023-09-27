@@ -27,6 +27,20 @@ mutation_del_pos2 = [{'protein':'S', 'position': 11, 'new': '-'}]
 mutation_del_pos19 = [{'protein':'S', 'position': 19, 'new': '-'}]
 mutation_del_pos18 = [{'protein':'S', 'position': 18, 'new': '-'}]
 
+mutations_middle_front = [{'protein':'S', 'position': 12, 'new': '-'},
+                          {'protein':'S', 'position': 13, 'new': '-'}
+                          ]
+mutations_middle_back = [{'protein':'S', 'position': 16, 'new': '-'},
+                          {'protein':'S', 'position': 17, 'new': '-'}
+                          ]
+
+mutation_insert_start = [{'protein':'S', 'position': 10, 'new': 'CRC'}]
+mutation_insert_end = [{'protein':'S', 'position': 16, 'new': 'CRC'}]
+mutation_insert_dels_after = [{'protein':'S', 'position': 14, 'new': 'CRC'},
+                          {'protein':'S', 'position': 15, 'new': '-'},
+                          {'protein':'S', 'position': 16, 'new': '-'},
+                          ]
+
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
@@ -35,6 +49,14 @@ seq_del_start =     'GGGGGGGGGLCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_start =    'GGGGGGGGGCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_del_end =       'GGGGGGGGGALCTTSFWFEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_end =      'GGGGGGGGGALCTTSFWEEEEEEEEEEEEEEEEEEEEE'
+seq_dels_middle_front =      'GGGGGGGGGALTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_dels_middle_end = 'GGGGGGGGGALCTTSFHEEEEEEEEEEEEEEEEEEEEE'
+#                    0        1         2         3         4 
+#                    1234567890123456789012345678901234567890
+seq_ins_middle =    'GGGGGGGGGALCTCRCTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_ins_start =     'GGGGGGGGGCRCALCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_ins_end =       'GGGGGGGGGALCTTSCRCFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_ins_del_after = 'GGGGGGGGGALCTCRCTWFHEEEEEEEEEEEEEEEEEEEEE'
 
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
@@ -141,19 +163,59 @@ class TestEpitope:
     epi.modify_indel_epitopes(seq_dels_start)
     assert epi.final_mutated_seq == 'GGCTTSFWFH'
 
-  def test_final_seq_gaps_end(self):
+  def test_final_seq_gaps_middle1(self):
     epi = Epitope(test_epitope_1)
-    epi.apply_mutations(mutation_del_pos19)
-    epi.modify_indel_epitopes(seq_del_end)
-    assert epi.final_mutated_seq == 'ALCTTSFWFE'
+    epi.apply_mutations(mutation_del_pos1)
+    epi.modify_indel_epitopes(seq_del_start)
+    assert epi.final_mutated_seq == 'GLCTTSFWFH'
     epi = Epitope(test_epitope_1)
-    deletions = mutation_del_pos19 + mutation_del_pos18
+    deletions = mutation_del_pos1 + mutation_del_pos2
     epi.apply_mutations(deletions)
-    epi.modify_indel_epitopes(seq_dels_end)
-    assert epi.final_mutated_seq == 'ALCTTSFWEE'
+    epi.modify_indel_epitopes(seq_dels_start)
+    assert epi.final_mutated_seq == 'GGCTTSFWFH'
+
+  def test_final_seq_gaps_middle_front(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutations_middle_front)
+    epi.modify_indel_epitopes(seq_dels_middle_front)
+    assert epi.final_mutated_seq == 'GGALTSFWFH'
+
+  def test_final_seq_gaps_middle_back(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutations_middle_back)
+    epi.modify_indel_epitopes(seq_dels_middle_end)
+    assert epi.final_mutated_seq == 'ALCTTSFHEE'
+
+  def test_final_seq_insert_start(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert_start)
+    epi.modify_indel_epitopes(seq_ins_start)
+    assert epi.final_mutated_seq == 'CRCALCTTSF'
+
+  def test_final_seq_insert_middle(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert)
+    epi.modify_indel_epitopes(seq_ins_middle)
+    assert epi.final_mutated_seq == 'TCRCTSFWFH'
+
+  def test_final_seq_insert_back(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert_end)
+    epi.modify_indel_epitopes(seq_ins_end)
+    assert epi.final_mutated_seq == 'ALCTTSCRCF'
+
+  def test_final_seq_insert_dels_after(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert_dels_after)
+    epi.modify_indel_epitopes(seq_ins_del_after)
+    assert epi.final_mutated_seq == 'ALCTCRCTWF'
+
 
 # Now the actually difficult ones:
 # What about multuple gaps in the middle, padding front or back?
+# Something wrong with the realign_mut_epitope method, that it returns epitope start and end, 
+# but actually what is getting aligned are the modified and gapless epitopes, which align 100% anyways.
+# This should rather be the start of the alignment compared to the original sequence.
 # What about insertions?
 # What about combination of insertions and deletions?
 
