@@ -1,12 +1,9 @@
 #! /home/julian/anaconda3/bin/python
-from typing import Dict
-from pathlib import Path
-from epitope_mutations import Epitope
+from epitope_mutations import Epitope, DEFAULT_TRANSLATION_DICT
 from input_output import epis_from_dicts, epilist_from_csv, mutationlist_from_csv, read_sequence_from_fasta
-from Bio.Align import PairwiseAligner
-import pandas as pd
 
 test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
+test_epitope_2 = {'epitope_id': 1,'protein':'ORF1ab', 'start':1, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
 
 mutation_start = [{'protein':'S', 'position': 10, 'new': 'T'}]
 mutation_middle = [{'protein':'S', 'position': 15, 'new': 'T'}]
@@ -50,6 +47,7 @@ mutation_insert_dels_before = [{'protein':'S', 'position': 14, 'new': 'CRC'},
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
 original_sequence = 'GGGGGGGGGALCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
+seq_mut_start =     'GGGGGGGGGTLCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_del_start =     'GGGGGGGGGLCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_start =    'GGGGGGGGGCTTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_del_end =       'GGGGGGGGGALCTTSFWFEEEEEEEEEEEEEEEEEEEEE'
@@ -216,81 +214,60 @@ class TestEpitope:
     epi.modify_indel_epitopes(seq_ins_del_before)
     assert epi.final_mutated_seq == 'TCRCTSFWFH'
 
+  def test_to_dict_after_mod(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_insert)
+    epi.modify_indel_epitopes(seq_ins_middle)
+    d = epi.to_dict()
+    assert all([
+      key in d.keys() for key in ['epitope_id','protein','start','end','length','original_sequence','mutations in this epitope','contains insertion','contains deletion',
+            'HLA restrictions','modified not final sequence','mutated_sequence']
+    ])
 
-# Now the actually difficult ones:
-# What about multuple gaps in the middle, padding front or back?
-# Something wrong with the realign_mut_epitope method, that it returns epitope start and end, 
-# but actually what is getting aligned are the modified and gapless epitopes, which align 100% anyways.
-# This should rather be the start of the alignment compared to the original sequence.
-# What about insertions?
-# What about combination of insertions and deletions?
+  def test_to_dict_before_mod(self):
+    epi = Epitope(test_epitope_1)
+    d = epi.to_dict()
+    assert all([
+      key in d.keys() for key in ['epitope_id','protein','start','end','length','original_sequence','mutations in this epitope','contains insertion','contains deletion',
+            'HLA restrictions']
+    ])
+    assert not ('modified not final sequence' in d.keys())
+    assert not ('mutated_sequence' in d.keys())
 
-"""
-  def to_dict_test():
-  # test existence of keywords?
-  def to_dict_no_mod_seq_test():
-  def to_dict_no_final_seq_test():
-  def gaps_before_align_test():
-  # This should probably move way up, bc the final seq stuff relies on it.
-  # Also, there are already tests in the old version down.
-  
+  def test_to_dict_simple_mod(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_start)
+    epi.modify_indel_epitopes(seq_mut_start)
+    d = epi.to_dict()
+    assert all([
+      key in d.keys() for key in ['epitope_id','protein','start','end','length','original_sequence','mutations in this epitope','contains insertion','contains deletion',
+            'HLA restrictions','modified not final sequence','mutated_sequence']
+    ])
+    assert d['modified not final sequence'] == d['mutated_sequence']
+
   def translate_ORF_to_protein_start_test():
+    epi = Epitope(test_epitope_2)
+    epi.translate_ORF_to_protein()
+    assert epi.start == test_epitope_2['start']
+    assert epi.protein == 'nsp1'
+
   def translate_ORF_to_protein_middle_test():
+    epi = Epitope(test_epitope_2)
+    epi.start = 3610
+    epi.end = 3619
+    epi.translate_ORF_to_protein()
+    assert epi.protein == 'nsp6'
+    assert epi.start == 41
+
   def translate_ORF_to_protein_last_test():
+    epi = Epitope(test_epitope_2)
+    epi.start = 6900
+    epi.end = 6919
+    epi.translate_ORF_to_protein()
+    assert epi.protein == 'nsp16'
+    assert epi.start == 102
+"""
 
-
-  
-
-
-
-def epitope_mutations_test():
-  realstart = Epitope.gaps_before(0,test_deletion_before_aligned)
-  assert test_deletion_before_aligned[realstart] == 'L'
-  realstart = Epitope.gaps_before(1,test_deletion_before_aligned)
-  assert test_deletion_before_aligned[realstart] == 'C'
-  realstart = Epitope.gaps_before(3,test_deletion_before_aligned)
-  assert test_deletion_before_aligned[realstart] == 'S'
-  realstart = Epitope.gaps_before(4,test_deletion_before_aligned)
-  assert test_deletion_before_aligned[realstart] == 'W'
-
-
-  epi1 = Epitope(test_epitope_1)
-  epi2 = Epitope(test_epitope_2)
-  epi3 = Epitope(test_epitope_3)
-
-  #print (epi1)
-  #epi1.apply_mutations(mutations)
-  #print(epi1)
-
-
-  #print (epi2)
-  #epi2.apply_mutations(mutations)
-  #print(epi2) 
-
-  epi1.apply_mutations(mutation_set_2)
-  epi1.modify_indel_epitopes(mutated_seq_set2)
-  print (epi1)
-  assert epi1.mod_sequence == test_epi1_mod, "Easy modification failed."
-  assert epi1.final_mutated_seq == test_epi1_final, "Generation of final mutated sequence failed."
-
-
-  epi2.apply_mutations(mutation_set_2)
-  epi2.modify_indel_epitopes(mutated_seq_set2)
-  print (epi2)
-  assert epi2.mod_sequence == test_epi2_mod, "Easy modification failed."
-  assert epi2.final_mutated_seq == test_epi2_final, "Generation of final mutated sequence failed."
-  
-  epi3.apply_mutations(mutation_set_2)
-  epi3.modify_indel_epitopes(mutated_seq_set2)
-  print (epi3)
-  assert epi3.mod_sequence == test_epi3_mod, "Easy modification failed."
-  assert epi3.final_mutated_seq == test_epi3_final, "Generation of final mutated sequence failed."
-
-
-  print(epi1.to_dict())
-  print(epi2.to_dict())
-  print(epi3.to_dict())
-  return list(epi1.to_dict(), epi2.to_dict(), epi3.to_dict)
 
 def input_output_tests() -> Dict[str,pd.DataFrame]:
   print("Testing generation of epis from dictionaries.")
