@@ -11,8 +11,6 @@ DEFAULT_TRANSLATION_DICT= {
     ]
 }
 
-
-
 class Epitope:
     def __init__(self, epitopteinfo:dict):
         self.epitope_id = epitopteinfo['epitope_id']
@@ -20,7 +18,6 @@ class Epitope:
         self.sequence = epitopteinfo['sequence']
         self.start = int(epitopteinfo['start'])
         self.HLA_restrictions = epitopteinfo['HLA_restrictions']
-        #self.length = epitopteinfo['length']
         self.mod_sequence = None
         self.mutation_counter = 0
         self.final_mutated_seq = None
