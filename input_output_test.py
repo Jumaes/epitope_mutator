@@ -1,7 +1,7 @@
 import pytest
 from copy import deepcopy
 from Bio.SeqRecord import SeqRecord
-from input_output import epis_from_dicts,epilist_from_csv, mutationlist_from_csv, read_sequences_from_fasta
+from input_output import epis_from_dicts,epilist_from_csv, mutationlist_from_csv, read_sequences_from_fasta, generate_mutated_sequences
 from epitope_mutations import Epitope
 
 test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
@@ -124,13 +124,25 @@ def test_mutationlist_from_csv_wrong_colnames():
 def test_read_sequences_from_fasta():
     seqdict = read_sequences_from_fasta('testing_data/sequences.fasta')
     assert type(seqdict)  == dict
-    assert type(seqdict['original']) == SeqRecord
-    assert all([(n in seqdict.keys()) for n in ['original', 'mutated', 'mutated_seq_2']])
-    assert str(seqdict['original'].seq) ==  'AADDFGGGHSTSR'
+    assert type(seqdict['S']) == SeqRecord
+    assert all([(n in seqdict.keys()) for n in ['S','H','ORF1ab']])
+    assert str(seqdict['S'].seq) ==  'AADDFGGGHSTSR'
 
 
 def test_generate_mutated_sequences():
-    assert 1 == 1
+    seqdict = read_sequences_from_fasta('testing_data/sequences.fasta')
+    mutatonlist  = [{'protein':'S', 'position': 3, 'new': 'CRC'},
+                          {'protein':'S', 'position': 10, 'new': 'W'},
+                          {'protein':'H', 'position': 3, 'new': 'W'},
+                          {'protein':'H', 'position': 5, 'new': '-'}]
+    output_dict = generate_mutated_sequences(seqdict,mutatonlist)
+    assert len(output_dict.keys()) == 3
+    assert all([(type(item)==str) for key,item in output_dict.items()])
+    assert output_dict['ORF1ab'] == str(seqdict['ORF1ab'].seq)
+    assert output_dict['S'] == 'AACRCDDFGGGHWTSR'
+    assert output_dict['H'] == 'AAWDGGGHCRSR'
+    # # All sequences actually turned into dict entries
+    # assert sequences mutated or not according to mutations and according to protein
 
 
 

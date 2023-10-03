@@ -1,5 +1,6 @@
 from typing import List, Dict
 from path import Path
+from io import StringIO
 
 import pandas as pd
 from Bio import SeqIO
@@ -96,13 +97,23 @@ def mutationlist_from_csv(
     df.replace('del','-', inplace=True)
     return df.to_dict(orient='records')
 
-# TODO: Oh this is not good... apparently the seq name is only getting read until the first white space.
-# That means names with identical string before the first white space lead to a crash.
-# And it does not follow the usual fasta convention, where the complete line is the name until the line break. 
 def read_sequences_from_fasta(fastafilepath:Path)->Dict[str,SeqRecord]:
+    # Actually, the fasta format requires the sequence identifier in the line starting with '>'
+    # to be without spaces. The SeqIO parser does cut off after the first whitespace.
+    # Users might not adhere to this policy, so here is trying to prevent that error 
+    # by replacing whitespaces (except trailing ones) with '_'.
     with open(fastafilepath,'r') as filehandle:
-        seq_gen = SeqIO.parse(filehandle,'fasta')
-        seq_dict = SeqIO.to_dict(seq_gen)
+        all_lines = []
+        for line in filehandle:
+            if line.startswith('>'):
+                mod_line = line.rstrip().replace(' ','_')
+                all_lines.append(mod_line)
+            else:
+                all_lines.append(line)
+    # Now generate a virtual file handle from that list of lines with line breaks and feed to biopython.
+    filehandle = StringIO('\n'.join(all_lines))
+    seq_gen = SeqIO.parse(filehandle,'fasta')
+    seq_dict = SeqIO.to_dict(seq_gen)
     return seq_dict
 
 

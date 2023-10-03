@@ -1,8 +1,8 @@
->original sequence
+>S
 AADDFGGGHSTSR
 
->mutated seq 1
+>H
 AADDFGGGHCRSR
 
->mutated_seq_2
+>ORF1ab
 AHDDWGGGHCRSR
