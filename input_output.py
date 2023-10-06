@@ -1,5 +1,6 @@
 from typing import List, Dict
 from path import Path
+from io import StringIO
 
 import pandas as pd
 from Bio import SeqIO
@@ -17,6 +18,8 @@ DEFAULT_COLUMN_NAME_DICT_CD8 = {
         "HLA_restrictions_col_name" : 'MHC Restriction',
         "length_col_name" : 'length'}
 
+# TODO: The list of necessary keys needs some thinking. At the moment, when generating from .csv, it will just fill a column with None.
+# And that is fine with the function below. That is likely not the way it should work.
 def epis_from_dicts(dict_list:List[dict]) -> List[Epitope]:
     epilist = []
     for d in dict_list:
@@ -37,7 +40,7 @@ def epilist_from_csv(
     
     cnd = column_name_dict
     df = pd.read_csv(filepath, sep=delim)
-    print (df.columns)
+    # print (df.columns)
     for column_name in column_name_dict.values():
         try:
             df[column_name]
@@ -45,15 +48,15 @@ def epilist_from_csv(
             print(f'Data input error: assumed column name {column_name} does not match a column in input file.')
             df[column_name] = None
             
+    # Need to get rid of lines, which contain no information or not sufficient information.
     df.dropna(inplace=True, subset=[cnd['sequence_col_name'],cnd['start_col_name']])
     #This is just a fix for the moment. Those should not be in the input data to begin with, but it's easy to fix here.
     df = df[df[cnd['start_col_name']] != 'mut']
     try:
         # TODO: Seems this is not actually working, but doesn't seem to matter for the moment.
         df.astype({cnd['start_col_name']:'int32', cnd['length_col_name']:'int32'}, copy=None)
-    except:
+    except ValueError:
         print('Start or length column cannot be converted into integer.')
-        quit()
     if not cnd['end_col_name'] in df.columns:
         df[cnd['end_col_name']] = df[cnd['start_col_name']]+df[cnd['length_col_name']] -1
     #return df
@@ -66,8 +69,7 @@ def epilist_from_csv(
         cnd["length_col_name"]: 'length',
         cnd["HLA_restrictions_col_name"]: 'HLA_restrictions'
     })
-    print (df.dtypes)
-    # Need to get rid of lines, which contain no information or not sufficient information.
+    # print (df.dtypes)
     list_of_dicts = df.to_dict(orient='records')
     epilist = epis_from_dicts(list_of_dicts)
     return epilist
@@ -84,10 +86,9 @@ def mutationlist_from_csv(
     for column_name in [protein_col_name,position_col_name, mutation_col_name]:
         try:
             df[column_name]
-        except:
+        except KeyError:
             print(f'Data input error: assumed column name {column_name} does not match a column in input file.')
             #df[column_name] = None
-            pass
     df.rename(inplace=True, columns={
         protein_col_name:'protein',
         position_col_name:'position',
@@ -96,31 +97,23 @@ def mutationlist_from_csv(
     df.replace('del','-', inplace=True)
     return df.to_dict(orient='records')
 
-
-def read_sequence_from_fasta(fastafilepath:Path, seq_name:str)->Dict[str,str]:
-    dict_entry = {}
-    seq_lines = []
-    with open(fastafilepath, 'r') as fasta:
-        lines = [line for line in fasta]
-        read = False
-        for line in lines:
-            if line == '\n':
-                read = False
-                continue
-            if read == True:
-                seq_lines.append(line)
-            if line.startswith('>'):
-                if seq_name in line:
-                    read = True
-    sequence = ''.join(seq_lines)
-    sequence = sequence.replace('\n','')
-    dict_entry[seq_name] = sequence
-    return dict_entry
-                    
 def read_sequences_from_fasta(fastafilepath:Path)->Dict[str,SeqRecord]:
+    # Actually, the fasta format requires the sequence identifier in the line starting with '>'
+    # to be without spaces. The SeqIO parser does cut off after the first whitespace.
+    # Users might not adhere to this policy, so here is trying to prevent that error 
+    # by replacing whitespaces (except trailing ones) with '_'.
     with open(fastafilepath,'r') as filehandle:
-        seq_gen = SeqIO.parse(filehandle,'fasta')
-        seq_dict = SeqIO.to_dict(seq_gen)
+        all_lines = []
+        for line in filehandle:
+            if line.startswith('>'):
+                mod_line = line.rstrip().replace(' ','_')
+                all_lines.append(mod_line)
+            else:
+                all_lines.append(line)
+    # Now generate a virtual file handle from that list of lines with line breaks and feed to biopython.
+    filehandle = StringIO('\n'.join(all_lines))
+    seq_gen = SeqIO.parse(filehandle,'fasta')
+    seq_dict = SeqIO.to_dict(seq_gen)
     return seq_dict
 
 

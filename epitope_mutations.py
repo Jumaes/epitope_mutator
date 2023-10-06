@@ -11,8 +11,6 @@ DEFAULT_TRANSLATION_DICT= {
     ]
 }
 
-
-
 class Epitope:
     def __init__(self, epitopteinfo:dict):
         self.epitope_id = epitopteinfo['epitope_id']
@@ -20,7 +18,6 @@ class Epitope:
         self.sequence = epitopteinfo['sequence']
         self.start = int(epitopteinfo['start'])
         self.HLA_restrictions = epitopteinfo['HLA_restrictions']
-        #self.length = epitopteinfo['length']
         self.mod_sequence = None
         self.mutation_counter = 0
         self.final_mutated_seq = None
@@ -64,7 +61,7 @@ class Epitope:
             # If not skip to next mutation.
             # This is not mandatory since funtion might be applied to a set of only one protein, where no protein names are given.
             if check_protein:
-                # NB using 'lower()' comparison here makes this case insensitive. This is under the assumption that no two protein names are identical except for case and case misspellings (nsp3 vs NSP3; ORF1a vs orf1a) are frequent.
+                # NB using 'lower()' comparison here makes this case insensitive. This is under the assumption that no two protein names are identical except for case and that case misspellings (nsp3 vs NSP3; ORF1a vs orf1a) are frequent.
                 if mutation['protein'].lower() != self.protein.lower():
                     continue
             if mutation['position'] in epirange:
@@ -113,6 +110,13 @@ class Epitope:
 
 
     def realign_mut_epitope(self,mutated_sequence:str) -> Tuple[int, int, int, int]:
+        # TODO: This needs major overhaul.
+        # Should be first create dict from position in original epitope to position in ungapped new epitope.
+        # Then align unagapped new to old sequence and make sure we only align the identical part.
+        # Get the borders of that align on the epitope, translate back to original epitope positions.
+        # Then using those borders decide on the padding left and right.
+        # Finally look for the exact sequence of the ungapped mutated (which aligned to the original) in the mutated full sequence.
+        # Then apply the padding left and right.
         modified_epitope = self.mod_sequence.replace('-','')
         aligner = pa()
         # We are looking to get the one best matching piece of the epitope aligned without any gaps.
@@ -159,7 +163,6 @@ class Epitope:
             'end':self.end, 
             'length':self.length, 
             'original_sequence':self.sequence, 
-            'mutated_sequence':self.final_mutated_seq,
             'mutations in this epitope' : self.mutation_counter,
             'contains insertion': self.has_ins,
             'contains deletion' : self.has_del,
