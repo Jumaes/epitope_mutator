@@ -4,7 +4,7 @@ from typing import Dict
 import pandas as pd 
 
 from epitope_mutations import Epitope
-from input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences
+from input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences,reorder_dataframe_columns, generate_stats_epi_mutations, generate_unique_epitope_df
 
 COLUMN_NAME_DICT_CD4 = {
         "epitope_id_col_name" : 'Epitope ID', 
@@ -38,62 +38,23 @@ def run(epitope_path:Path,mutationspath:Path,original_sequences_path:Path, outpu
   for epi in epis: 
     epi.apply_mutations(mutations)
     epi.modify_indel_epitopes(mutated_sequence_dict[epi.protein])
-  # The rest is just outout stuff, conversion to dataframes and generating stats.
-  # TODO: A lot of this should actually become functions in input_output
-  outputpath = Path(output_path)
+  # From here mostly output and stat generation.
+  # Turning the epi objects into a dataframe with a reasonable column order.
   all_epis = [epi.to_dict() for epi in epis ]
-  ''' no_mutations = [epi.to_dict() for epi in epis if epi.mutation_counter == 0]
-  with_mutations = [epi.to_dict() for epi in epis if epi.mutation_counter != 0]
-  with_deletions = [epi.to_dict() for epi in epis if epi.has_del]
-  with_insertions = [epi.to_dict() for epi in epis if epi.has_ins]
-  print(f"Of {str(len(all_epis))} epis, {str(len(no_mutations))} have not mutations.")
-  print(f"{str(len(with_mutations))} have any kind of mutation.")
-  print(f"{str(len(with_deletions))} have at least one deletion.")
-  print(f"{str(len(with_insertions))} have at least one insetion mutation.")
-  print("Returning a dict of dataframes with first those without mutations, then any mutation, then deletions, then insertions.")
-  no_mutations_df = pd.DataFrame.from_records(no_mutations)
-  with_mutations_df = pd.DataFrame.from_records(with_mutations)
-  with_deletions_df = pd.DataFrame.from_records(with_deletions)
-  with_insertions_df = pd.DataFrame.from_records(with_insertions)'''
   all_epis_df = pd.DataFrame.from_records(all_epis)
-  # df_dict = {'no_mutations':no_mutations_df, 'with_mutations':with_mutations_df,'with_deletions': with_deletions_df, 'with_insertions':with_insertions_df, 'all_epis':all_epis_df}  
-  column_order = [
-      'epitope_id',
-      'protein',
-      'start',
-      'end',
-      'length', 
-      'original_sequence',
-      'modified not final sequence',
-      'mutated_sequence',
-      'contains deletion', 
-      'contains insertion',
-      'mutations in this epitope',
-      'HLA restrictions'
-      ]
-  #for name,dataframe in df_dict.items():
-    # Some columns might not exist like 'protein'. So I can't just apply the list as new order, but have to keep just those, which are actually in the dataset.
-  new_columns = []
-  for column in column_order:
-    if column in all_epis_df.columns:
-      new_columns.append(column)
-  all_epis_df = all_epis_df[new_columns]
-  all_epis_df.to_csv(outputpath.joinpath(name_stem+'_all_non_unique_epitopes.csv'),sep=';',index=False)
-  all_epis_df_unique = all_epis_df.drop_duplicates(subset='original_sequence')
-  all_epis_df_unique.to_csv(outputpath.joinpath(name_stem+'_all_unique_epitopes.csv'),sep=';',index=False)
-  no_unique_epis = all_epis_df_unique.shape[0]
-  no_mutations = all_epis_df_unique[all_epis_df_unique['mutations in this epitope']>0].shape[0]
-  no_deletions = all_epis_df_unique[all_epis_df_unique['contains deletion'] == True].shape[0]
-  no_insertions = all_epis_df_unique[all_epis_df_unique['contains insertion'] == True].shape[0]
-  stat_dict = {
-      'Type':['All epitopes','With any mutations','With deletions','With insertions'],
-      'Number': [no_unique_epis,no_mutations, no_deletions, no_insertions],
-      'Of total': [no_unique_epis/no_unique_epis, no_mutations/no_unique_epis, no_deletions/no_unique_epis, no_insertions/no_unique_epis]
-
-    }
-  stats = pd.DataFrame(stat_dict)
-  stats.to_csv(outputpath.joinpath(name_stem+'_stats.csv'),sep=';',index=False)
+  all_epis_df = reorder_dataframe_columns(all_epis_df)
+  # Creating also a dataframe with unique epitopes (duplications bc single epitope with multiple HLA restrictions are here treated as multiple epitopes)
+  all_epis_df_unique = generate_unique_epitope_df(all_epis_df)
+  # And now generating some stats 
+  # TODO: Could easily generate those per each protein if wanted. Just a question on how to arrange in output.
+  # Maybe could use a multiindex with outer index being the protein??
+  stats = generate_stats_epi_mutations(all_epis_df_unique)
   hist_data = all_epis_df_unique.groupby(by='mutations in this epitope').count().loc[:,'start']
+
+  outputpath = Path(output_path)
+  all_epis_df.to_csv(outputpath.joinpath(name_stem+'_all_non_unique_epitopes.csv'),sep=';',index=False)
+  all_epis_df_unique.to_csv(outputpath.joinpath(name_stem+'_all_unique_epitopes.csv'),sep=';',index=False)
+  stats.to_csv(outputpath.joinpath(name_stem+'_stats.csv'),sep=';',index=False)
   hist_data.to_csv(outputpath.joinpath(name_stem+'_histogramm_data.csv'),sep=';')
 
 if __name__ == "__main__":

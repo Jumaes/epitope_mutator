@@ -17,6 +17,19 @@ DEFAULT_COLUMN_NAME_DICT_CD8 = {
         "end_col_name" : 'Mapped End Position',
         "HLA_restrictions_col_name" : 'MHC Restriction',
         "length_col_name" : 'length'}
+DEFAULT_OUTPUT_COLUMN_ORDER = [
+      'epitope_id',
+      'protein',
+      'start',
+      'end',
+      'length', 
+      'original_sequence',
+      'modified not final sequence',
+      'mutated_sequence',
+      'contains deletion', 
+      'contains insertion',
+      'mutations in this epitope',
+      'HLA restrictions']
 
 # TODO: The list of necessary keys needs some thinking. At the moment, when generating from .csv, it will just fill a column with None.
 # And that is fine with the function below. That is likely not the way it should work.
@@ -135,3 +148,34 @@ def generate_mutated_sequences(original_sequence_dict:Dict[str,SeqRecord], mutat
         pseudoepi.apply_mutations(mutations)
         output_dict[pseudoepi.protein] = pseudoepi.mod_sequence.replace('-','')
     return output_dict
+
+def reorder_dataframe_columns(df:pd.DataFrame,column_order:List[str]=DEFAULT_OUTPUT_COLUMN_ORDER)->pd.DataFrame:
+    # Some columns might not exist like 'protein'. So I can't just apply the list as new order, but have to keep just those, which are actually in the dataset.
+    new_columns = []
+    for column in column_order:
+        if column in df.columns:
+            new_columns.append(column)
+    df_out = df[new_columns]
+    return df_out
+
+def generate_stats_epi_mutations(df:pd.DataFrame) -> pd.DataFrame:
+    no_unique_epis = df.shape[0]
+    no_mutations = df[df['mutations in this epitope']>0].shape[0]
+    no_deletions = df[df['contains deletion'] == True].shape[0]
+    no_insertions = df[df['contains insertion'] == True].shape[0]
+    stat_dict = {
+        'Type':['All epitopes','With any mutations','With deletions','With insertions'],
+        'Number': [no_unique_epis,no_mutations, no_deletions, no_insertions],
+        'Of total': [no_unique_epis/no_unique_epis, no_mutations/no_unique_epis, no_deletions/no_unique_epis, no_insertions/no_unique_epis]
+
+        }
+    stats = pd.DataFrame(stat_dict)
+    return stats
+
+def generate_unique_epitope_df(non_unique_df:pd.DataFrame)->pd.DataFrame:
+    # Since epitope ID can be just NaN for the whole column, this needs to be dropped, bc otherwise grouping doesn't work.
+    non_unique_df_non_na = non_unique_df.dropna(axis=1)
+    # Then let's find all columns existing except the HLA restrictions, which I want to aggregate.
+    identical_columns = [col for col in non_unique_df_non_na.columns if not col == 'HLA restrictions']
+    unique_df = non_unique_df_non_na.groupby(identical_columns, as_index=False).agg({'HLA restrictions':','.join})
+    return unique_df
