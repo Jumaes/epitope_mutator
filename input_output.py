@@ -17,7 +17,6 @@ DEFAULT_COLUMN_NAME_DICT_CD8 = {
         "end_col_name" : 'Mapped End Position',
         "HLA_restrictions_col_name" : 'MHC Restriction',
         "length_col_name" : 'length'}
-
 DEFAULT_OUTPUT_COLUMN_ORDER = [
       'epitope_id',
       'protein',
