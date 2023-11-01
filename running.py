@@ -4,8 +4,8 @@ import logging
 
 import pandas as pd 
 
-from epitope_mutations import Epitope
-from input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences,reorder_dataframe_columns, generate_stats_epi_mutations, generate_unique_epitope_df
+from code.epitope_mutations import Epitope
+from code.input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences,reorder_dataframe_columns, generate_stats_epi_mutations, generate_unique_epitope_df
 
 COLUMN_NAME_DICT_CD4 = {
         "epitope_id_col_name" : 'Epitope ID', 
@@ -18,8 +18,8 @@ COLUMN_NAME_DICT_CD4 = {
 
 def setup_logging(level:int,output_path, name_stem) -> logging.Logger :
   l = logging.getLogger('epitope_mutations_run')
-  l.setLevel(logging.DEBUG)
-  fh = logging.FileHandler(Path(output_path).joinpath(name_stem +'.log'))
+  l.setLevel(level)
+  fh = logging.FileHandler(Path(output_path).joinpath(name_stem +'.log'), mode='w')
   formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
   fh.setFormatter(formatter)
   l.addHandler(fh)
@@ -84,5 +84,5 @@ def run(epitope_path:str,mutationspath:str,original_sequences_path:str, output_p
   hist_data.to_csv(outputpath.joinpath(name_stem+'_histogramm_data.csv'),sep=';')
 
 if __name__ == "__main__":
-  dfs_CD4 = run(name_stem='CD4',epitope_path='~/alba-project/run_data/CD4_epitopes_all_proteins_v2.csv',mutationspath='~/alba-project/run_data/mutationlist.csv',original_sequences_path='~/alba-project/run_data/ancestral_sequences_mod.txt',output_path='tmp/CD4_run')
+  dfs_CD4 = run(name_stem='CD4',epitope_path='../alba-project/run_data/CD4_epitopes_all_proteins_v2.csv',mutationspath='../alba-project/run_data/mutationlist.csv',original_sequences_path='../alba-project/run_data/ancestral_sequences_mod.txt',output_path='tmp/CD4_run')
   # dfs_CD8 = run(name_stem= 'CD8',epitope_path='run_data/CD8_epitopes_all_proteins_v2.csv',mutationspath='run_data/mutationlist.csv',original_sequences_path='run_data/ancestral_sequences_mod.txt',output_path='run_data/CD8_run')

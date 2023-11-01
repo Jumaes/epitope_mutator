@@ -1,13 +1,16 @@
 from typing import List, Dict
 from path import Path
 from io import StringIO
+import logging
 
 import pandas as pd
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from epitope_mutations import Epitope
+from code.epitope_mutations import Epitope
 
+l = logging.getLogger('input_output')
+l.setLevel(logging.DEBUG)
 
 DEFAULT_COLUMN_NAME_DICT_CD8 = {
         "epitope_id_col_name" : 'Epitope ID', 

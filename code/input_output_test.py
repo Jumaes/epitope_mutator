@@ -1,8 +1,8 @@
 import pytest
 from copy import deepcopy
 from Bio.SeqRecord import SeqRecord
-from input_output import epis_from_dicts,epilist_from_csv, mutationlist_from_csv, read_sequences_from_fasta, generate_mutated_sequences
-from epitope_mutations import Epitope
+from code.input_output import epis_from_dicts,epilist_from_csv, mutationlist_from_csv, read_sequences_from_fasta, generate_mutated_sequences
+from code.epitope_mutations import Epitope
 
 test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
 test_epitope_2 = {'epitope_id': 1,'protein':'ORF1ab', 'start':1, 'end':10, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
