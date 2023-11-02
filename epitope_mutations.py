@@ -1,7 +1,8 @@
+import logging
 from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
-
+l = logging.getLogger('epitope_mutator.epitope')
 
 
 DEFAULT_TRANSLATION_DICT= {
@@ -27,6 +28,7 @@ class Epitope:
             self.end = int(epitopteinfo['end'])
         else:
             self.end = self.start + self.length - 1  
+        l.debug(f'Epitope initialized: {self}')
 
     def __repr__(self) -> str:
         #print ('Epitope: '+self.__name__)
@@ -51,6 +53,7 @@ class Epitope:
         return l
 
     def apply_mutations(self, mutations:list, check_protein:bool=True):
+        l.debug(f'Applying mutations to epitope startin at {self.start} in protein {self.protein} with sequence {self.sequence}.')
         self.mod_sequence = self.sequence
         self.mutation_counter = 0
         # NB: This assumes the 'end' is indeed the last position of the epitope aka it is still part of the epitope.
@@ -63,8 +66,10 @@ class Epitope:
             if check_protein:
                 # NB using 'lower()' comparison here makes this case insensitive. This is under the assumption that no two protein names are identical except for case and that case misspellings (nsp3 vs NSP3; ORF1a vs orf1a) are frequent.
                 if mutation['protein'].lower() != self.protein.lower():
+                    l.debug(f'\t\t Mutation {mutation} not in protein of this epitope.')
                     continue
             if mutation['position'] in epirange:
+                    l.debug(f'\t Found mutation {mutation} in protein and correct range for epitope. Applying. ')
                     self.mutation_counter += 1
                     try:
                         if len(mutation['new']) == 1:
@@ -75,13 +80,19 @@ class Epitope:
                             mod_seq_list[mutation['position']-self.start] = mutation['new'] + mod_seq_list[mutation['position']-self.start]
                             self.has_ins = True
                     except(IndexError):
-                        print (f"Index Error occuring at mutation: {mutation['position']} and epitope: {self.epitope_id} of protein {self.protein} and position {str(self.start)}.")
+                        l.critical(f"Index Error occuring at mutation: {mutation['position']} and epitope: {self.epitope_id} of protein {self.protein} and position {str(self.start)}.")
                         quit()
                     self.mod_sequence = ''.join(mod_seq_list)
+                    l.debug(f'\t Original sequence {self.sequence} turned into {self.mod_sequence} by mutation {mutation}.')
                     # In case there were only mutations and no indels.
                     if not '-' in self.mod_sequence and len(self.mod_sequence) == self.length:
-                        self.mutated_sequence = self.mod_sequence  
-
+                        l.debug(f'\t Mutation {mutation} seems simple mutation without deletions or insertions. No further modification of mutated epitope needed.')
+                        self.mutated_sequence = self.mod_sequence 
+                    else: 
+                        l.debug(f'\t\tMutation {mutation} seems to contain deletions and/or insertions. Further modificationn of mutated epitope might be necessary.')
+    
+    # TODO: This and the realigning of epitope needs bit of overhaul.
+    # TODO: Need to add logging once that is done.
     def modify_indel_epitopes(self, mutated_sequence:str):
         #This is only needed, if there are insertions or deletions in the epitope (to my knowledge)
         if not (self.has_del or self.has_ins):
@@ -175,6 +186,7 @@ class Epitope:
         return d
     
     def translate_ORF_to_protein(self, translation_dict:Dict[str,List[list]]=DEFAULT_TRANSLATION_DICT):
+        l.debug(f'Translating orf {self.protein} into protein.')
         if self.protein in translation_dict.keys():
             ranges = translation_dict.get(self.protein)[0]
             names = translation_dict.get(self.protein)[1]
@@ -183,6 +195,7 @@ class Epitope:
                     new_name = names[num]
                     new_start = self.start - r + 1
                     new_end = new_start + self.length -1
+                    l.debug(f"Translated ORF {self.protein} to protein {new_name} with original start {self.start} to new start {new_start}.")
                     self.start = new_start
                     self.protein = new_name
                     self.end = new_end
