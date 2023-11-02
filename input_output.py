@@ -7,7 +7,7 @@ import pandas as pd
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from code.epitope_mutations import Epitope
+from epitope_mutations import Epitope
 
 l = logging.getLogger('input_output')
 l.setLevel(logging.DEBUG)

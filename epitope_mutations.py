@@ -2,8 +2,8 @@ import logging
 from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
-l = logging.getLogger('epitope')
-l.setLevel(logging.DEBUG)
+l = logging.getLogger('epitope_mutator.epitope')
+# l.setLevel(logging.DEBUG)
 
 
 DEFAULT_TRANSLATION_DICT= {
@@ -90,7 +90,7 @@ class Epitope:
                         l.debug(f'\t Mutation {mutation} seems simple mutation without deletions or insertions. No further modification of mutated epitope needed.')
                         self.mutated_sequence = self.mod_sequence 
                     else: 
-                        l.debug(f'Mutation {mutation} seems to contain deletions and/or insertions. Further modificationn of mutated epitope might be necessary.')
+                        l.debug(f'\t\tMutation {mutation} seems to contain deletions and/or insertions. Further modificationn of mutated epitope might be necessary.')
     
     # TODO: This and the realigning of epitope needs bit of overhaul.
     # TODO: Need to add logging once that is done.

@@ -1,4 +1,4 @@
-from code.epitope_mutations import Epitope
+from epitope_mutations import Epitope
 
 test_epitope_1 = {'epitope_id': 1,'protein':'S', 'start':10, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}
 test_epitope_2 = {'epitope_id': 1,'protein':'ORF1ab', 'start':1, 'end':19, 'length':10, 'sequence':'ALCTTSFWFH', 'HLA_restrictions': 'HLA class II'}

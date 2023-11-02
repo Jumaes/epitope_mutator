@@ -4,8 +4,8 @@ import logging
 
 import pandas as pd 
 
-from code.epitope_mutations import Epitope
-from code.input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences,reorder_dataframe_columns, generate_stats_epi_mutations, generate_unique_epitope_df
+from epitope_mutations import Epitope
+from input_output import mutationlist_from_csv, read_sequences_from_fasta, epilist_from_csv, generate_mutated_sequences,reorder_dataframe_columns, generate_stats_epi_mutations, generate_unique_epitope_df
 
 COLUMN_NAME_DICT_CD4 = {
         "epitope_id_col_name" : 'Epitope ID', 
@@ -17,10 +17,10 @@ COLUMN_NAME_DICT_CD4 = {
         "length_col_name" : 'length'}
 
 def setup_logging(level:int,output_path, name_stem) -> logging.Logger :
-  l = logging.getLogger('epitope_mutations_run')
+  l = logging.getLogger('epitope_mutator')
   l.setLevel(level)
   fh = logging.FileHandler(Path(output_path).joinpath(name_stem +'.log'), mode='w')
-  formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+  formatter = logging.Formatter('%(asctime)s - %(name)s- %(levelname)s - %(message)s')
   fh.setFormatter(formatter)
   l.addHandler(fh)
   return l
@@ -30,8 +30,10 @@ def run(epitope_path:str,mutationspath:str,original_sequences_path:str, output_p
   mutationspath = Path(mutationspath).expanduser()
   original_sequences_path = Path(original_sequences_path).expanduser()
   output_path = Path(output_path).expanduser()
-  l = setup_logging(logging.DEBUG, output_path, name_stem)
-  # Now using as raw_epis here and then later filter out those, where the sequence is actually not contained in the ancestral wuhan sequence.
+  l = setup_logging(logging.INFO, output_path, name_stem)
+  l.info(f'Now loading epis.') 
+  # Now using as raw_epis here and then later filter out those, where the sequence is actually not contained in the ancestral sequence.
+  l.info(f'Running epitope mutator using epitopes in {epitope_path} and mutations in {mutationspath} as well as original sequences in {original_sequences_path}. \n\t Ouput being written into {output_path} with file name stem {name_stem}. ')
   raw_epis = epilist_from_csv(epitope_path, COLUMN_NAME_DICT_CD4)
   l.info(f'Loaded list of epis from file {epitope_path}. Found {len(raw_epis)} epis before cross checking with full sequence.')
   l.info(f'Attempting to load mutations from file {mutationspath} assuming column names protein, Position, Residue.')
