@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass, field
 from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
@@ -14,40 +15,32 @@ DEFAULT_TRANSLATION_DICT= {
     ]
 }
 
+@dataclass
 class Epitope:
-    def __init__(self, epitopteinfo:dict):
-        self.epitope_id = epitopteinfo['epitope_id']
-        self.protein = epitopteinfo['protein']
-        self.sequence = epitopteinfo['sequence']
-        self.start = int(epitopteinfo['start'])
-        self.HLA_restrictions = epitopteinfo['HLA_restrictions']
-        self.mod_sequence = None
-        self.mutation_counter = 0
-        self.final_mutated_seq = None
-        self.has_del = False
-        self.has_ins = False
-        if epitopteinfo.get('end'):
-            self.end = int(epitopteinfo['end'])
+    epitopeinfo: dict =  field(repr=False)
+    mod_sequence : str = None
+    mutation_counter: int = 0
+    final_mutated_seq: str = None
+    has_del: bool = False
+    has_ins: bool = False
+    epitope_id: str = ''
+    protein: str = ''
+    sequence: str = ''
+    start: int = 0
+    HLA_restrictions : str = ''
+    end: int = 0
+    
+    def __post_init__(self):
+        self.epitope_id = self.epitopeinfo['epitope_id']
+        self.protein = self.epitopeinfo['protein']
+        self.sequence = self.epitopeinfo['sequence']
+        self.start = int(self.epitopeinfo['start'])
+        self.HLA_restrictions = self.epitopeinfo['HLA_restrictions']
+        if self.epitopeinfo.get('end'):
+            self.end = int(self.epitopeinfo['end'])
         else:
             self.end = self.start + self.length - 1  
         l.debug(f'Epitope initialized: {self}')
-
-    def __repr__(self) -> str:
-        #print ('Epitope: '+self.__name__)
-        rep = 'Epitope ID: ' + str(self.epitope_id) + '\n'
-        rep += 'Start: ' + str(self.start) + '\n'
-        rep += 'End: '+ str(self.end) + '\n'
-        rep +=  'Length: ' +str(self.length) + '\n'
-        rep += 'Sequence: ' + self.sequence + '\n'
-        if self.protein:
-            rep += 'Protein: ' +self.protein + '\n'
-        if self.mod_sequence:
-            rep += 'Modified sequence: ' + self.mod_sequence + '\n'
-        if self.mutation_counter:
-            rep += 'Number of mutations: ' + str(self.mutation_counter) + '\n'
-        if self.final_mutated_seq:
-            rep += 'Final mutated sequence: ' + str(self.final_mutated_seq) + '\n'
-        return rep
     
     @property
     def length(self):
