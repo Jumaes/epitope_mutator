@@ -3,7 +3,6 @@ from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
 l = logging.getLogger('epitope_mutator.epitope')
-# l.setLevel(logging.DEBUG)
 
 
 DEFAULT_TRANSLATION_DICT= {
