@@ -17,7 +17,7 @@ DEFAULT_TRANSLATION_DICT= {
 
 @dataclass
 class Epitope:
-    epitopeinfo: dict =  field(rep=False)
+    epitopeinfo: dict =  field(repr=False)
     mod_sequence : str = None
     mutation_counter: int = 0
     final_mutated_seq: str = None
