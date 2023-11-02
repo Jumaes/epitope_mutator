@@ -3,7 +3,9 @@ from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
 l = logging.getLogger('epitope_mutator.epitope')
-
+# sh = logging.StreamHandler()
+# l.addHandler(sh)
+# l.setLevel(logging.DEBUG)
 
 DEFAULT_TRANSLATION_DICT= {
     'ORF1ab': [
@@ -90,44 +92,26 @@ class Epitope:
                         self.mutated_sequence = self.mod_sequence 
                     else: 
                         l.debug(f'\t\tMutation {mutation} seems to contain deletions and/or insertions. Further modificationn of mutated epitope might be necessary.')
-    
-    # TODO: This and the realigning of epitope needs bit of overhaul.
-    # TODO: Need to add logging once that is done.
+
     def modify_indel_epitopes(self, mutated_sequence:str):
         #This is only needed, if there are insertions or deletions in the epitope (to my knowledge)
         if not (self.has_del or self.has_ins):
             self.final_mutated_seq = self.mod_sequence
             return
-        # Making sure there are no gaps in the input mutated sequence.
-        mutated_sequence = mutated_sequence.replace('-','')
-        # In case the epitope underwent indels, we need to bring the epitope back to the original length
-        # This is done by aligning it to the mutated full sequence such that only perfect matches align without gaps.
-        # Then adding amino acids at beginning and end as applicable to reach original length while keeping amino acids in register.
-        epitope_start, epitope_end, sequence_start, sequence_end = self.realign_mut_epitope(mutated_sequence)
-        aligned_epitope_core = self.mod_sequence.replace('-','')[epitope_start:epitope_end+1]
-        deletions_before_aligned = self.gaps_before(epitope_start,self.mod_sequence)
-        len_padding_needed_start = epitope_start + deletions_before_aligned
-        if len_padding_needed_start >= 0:
-            padding_start = mutated_sequence[sequence_start-len_padding_needed_start:sequence_start]
-            final_start_core = padding_start + aligned_epitope_core
-        else:
-            final_start_core = aligned_epitope_core[abs(len_padding_needed_start):]
-        len_padding_needed_end = self.length - (epitope_end +deletions_before_aligned)
-        if len_padding_needed_end >= 0:
-            padding_end = mutated_sequence[sequence_end+1:sequence_end+1+len_padding_needed_end]
-            self.final_mutated_seq = final_start_core + padding_end
-        else:
-            self.final_mutated_seq = final_start_core[:len_padding_needed_end]
+        l.debug(f'Need to modify final sequence of epitope {self.sequence} from modified sequence {self.mod_sequence} because of indels.')
+        l.debug(f'Aligning mod epitope to original epitope to find largest unmodified core.')
+        mod_start, mod_end, original_start, original_end  = self.get_unchanged_epitope_core_borders()
+        len_padding_needed_start = original_start
+        len_padding_needed_end = self.length - original_end
+        l.debug(f'Unchanged core identified as {self.unchanged_core}.')
+        l.debug(f'Padding needed in front of unchanged core {len_padding_needed_start} and after unchanged core {len_padding_needed_end}.')
+        l.debug(f'Now checking position of unchanged core in mutated sequence.')
+        epitope_start, epitope_end, sequence_start, sequence_end = self.align_unchanged_core_mutated_sequence(mutated_sequence)
+        l.debug(f'Found unchanged core in mutated sequence starting at {sequence_start} and ending at {sequence_end}.')
+        self.final_mutated_seq = mutated_sequence[sequence_start-len_padding_needed_start:sequence_end+len_padding_needed_end]
+        l.debug(f'Final sequence is {self.final_mutated_seq}.')
 
-
-    def realign_mut_epitope(self,mutated_sequence:str) -> Tuple[int, int, int, int]:
-        # TODO: This needs major overhaul.
-        # Should be first create dict from position in original epitope to position in ungapped new epitope.
-        # Then align unagapped new to old sequence and make sure we only align the identical part.
-        # Get the borders of that align on the epitope, translate back to original epitope positions.
-        # Then using those borders decide on the padding left and right.
-        # Finally look for the exact sequence of the ungapped mutated (which aligned to the original) in the mutated full sequence.
-        # Then apply the padding left and right.
+    def get_unchanged_epitope_core_borders(self) -> Tuple[int,int,int,int]:
         modified_epitope = self.mod_sequence.replace('-','')
         aligner = pa()
         # We are looking to get the one best matching piece of the epitope aligned without any gaps.
@@ -136,19 +120,35 @@ class Epitope:
         aligner.open_gap_score = -10
         aligner.extend_gap_score = -10
         aligner.mismatch_score = -5
-        alignments  = aligner.align(mutated_sequence,modified_epitope)
+        alignments  = aligner.align(self.sequence,modified_epitope)
         best_align = alignments[0]
-        #print (best_align)
+        l.debug(best_align)
+        # Following should return tuples of start and end positions for all aligned parts.
+        # Because of high gap scores, there should be only one aligned part.
+        starts, ends = best_align.path
+        original_start, mod_start = [int(x) for x in starts]
+        original_end, mod_end = [int(x) for x in ends]
+        # NB: The "ends" are exclusive like in typical python slicing and starting with 0. Alignment of only amino acid 1 would be "(0,1)".
+        self.unchanged_core = self.sequence[original_start:original_end]
+        return mod_start, mod_end, original_start, original_end 
+
+    def align_unchanged_core_mutated_sequence(self,mutated_sequence:str) -> Tuple[int, int, int, int]:
+        aligner = pa()
+        # We are looking to get the one best matching piece of the epitope aligned without any gaps.
+        # Therefore making sure it's a local alignment and gap score through the roof. 
+        aligner.mode = 'local'
+        aligner.open_gap_score = -10
+        aligner.extend_gap_score = -10
+        aligner.mismatch_score = -5
+        alignments  = aligner.align(mutated_sequence,self.unchanged_core)
+        best_align = alignments[0]
+        l.debug(best_align)
         # Following should return tuples of start and end positions for all aligned parts.
         # Because of high gap scores, there should be only one aligned part.
         starts, ends = best_align.path
         sequence_start, epitope_start = [int(x) for x in starts]
         sequence_end, epitope_end = [int(x) for x in ends]
-        '''target_start_ends, query_start_ends = best_align.path
-        assert len(query_start_ends) == 1 , print('Alignment of eiptope lead to gaps. Something is wrong here.')
-        epitope_start, epitope_end = [int(x) for x in query_start_ends]
-        sequence_start, sequence_end = [int(x) for x in query_start_ends]
-        '''# NB: The "ends" are exclusive like in typical python slicing. Alignment of only amino acid 1 would be "(0,1)".
+        # NB: The "ends" are exclusive like in typical python slicing. Alignment of only amino acid 1 would be "(0,1)".
         return epitope_start, epitope_end, sequence_start, sequence_end 
     
     @staticmethod

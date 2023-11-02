@@ -18,6 +18,8 @@ mutation_insert_middle = [{'protein':'S', 'position': 14, 'new': 'CRC'},
 
 mutation_del_pos1 = [{'protein':'S', 'position': 10, 'new': '-'}]
 mutation_del_pos2 = [{'protein':'S', 'position': 11, 'new': '-'}]
+mutation_del_pos4 = [{'protein':'S', 'position': 13, 'new': '-'}]
+
 
 mutation_del_pos19 = [{'protein':'S', 'position': 19, 'new': '-'}]
 mutation_del_pos18 = [{'protein':'S', 'position': 18, 'new': '-'}]
@@ -52,6 +54,7 @@ seq_del_end =       'GGGGGGGGGALCTTSFWFEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_end =      'GGGGGGGGGALCTTSFWEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_middle_front =      'GGGGGGGGGALTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 seq_dels_middle_end = 'GGGGGGGGGALCTTSFHEEEEEEEEEEEEEEEEEEEEE'
+seq_dels_separated_front = 'GGGGGGGGGACTSFWFHEEEEEEEEEEEEEEEEEEEEE'
 #                    0        1         2         3         4 
 #                    1234567890123456789012345678901234567890
 seq_ins_middle =    'GGGGGGGGGALCTCRCTSFWFHEEEEEEEEEEEEEEEEEEEEE'
@@ -176,6 +179,12 @@ class TestEpitope:
     epi.modify_indel_epitopes(seq_dels_middle_front)
     assert epi.final_mutated_seq == 'GGALTSFWFH'
 
+  def test_final_seq_gaps_separated_front(self):
+    epi = Epitope(test_epitope_1)
+    epi.apply_mutations(mutation_del_pos1+mutation_del_pos4)
+    epi.modify_indel_epitopes(seq_dels_separated_front)
+    assert epi.final_mutated_seq == 'GGACTSFWFH'
+
   def test_final_seq_gaps_middle_back(self):
     epi = Epitope(test_epitope_1)
     epi.apply_mutations(mutations_middle_back)
@@ -186,7 +195,7 @@ class TestEpitope:
     epi = Epitope(test_epitope_1)
     epi.apply_mutations(mutation_insert_start)
     epi.modify_indel_epitopes(seq_ins_start)
-    assert epi.final_mutated_seq == 'CRCALCTTSF'
+    assert epi.final_mutated_seq == 'ALCTTSFWFH'
 
   def test_final_seq_insert_middle(self):
     epi = Epitope(test_epitope_1)
@@ -264,12 +273,3 @@ class TestEpitope:
     epi.translate_ORF_to_protein()
     assert epi.protein == 'nsp16'
     assert epi.start == 102
-
-
-
-  # TODO:
-  # DONE Filter on epitope existing in ancestral sequence
-  # DONE Export stats with number of epitopes with mutation, deletions, insertions, % mutations and hist of number of mutations
-  # Make sure restriction info is in there; I'll get one file with unique epitop ID HAL combo; export like that and without HLA with unique epitope ID lines and number of different HLA restrctions
-  # DONE Export one csv with all
-  # DONE Bring start and end into final table"""
