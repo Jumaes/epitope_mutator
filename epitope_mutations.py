@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from Bio.Align import PairwiseAligner as pa
 from typing import Tuple, Dict, List
 
@@ -17,7 +17,7 @@ DEFAULT_TRANSLATION_DICT= {
 
 @dataclass
 class Epitope:
-    epitopeinfo: dict
+    epitopeinfo: dict =  field(rep=False)
     mod_sequence : str = None
     mutation_counter: int = 0
     final_mutated_seq: str = None
